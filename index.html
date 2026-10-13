@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="hi" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>User-To-User Live App with Image Upload</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: { colors: { brand: '#3B82F6' } }
+      }
+    }
+  </script>
+
+  <style>
+    * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+    body {
+      -webkit-font-smoothing: antialiased;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .touch-bounce:active { transform: scale(0.96); transition: transform 0.1s ease; }
+  </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen pb-28 select-none flex flex-col justify-between">
+
+  <!-- TOP HEADER -->
+  <header class="sticky top-0 z-40 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex justify-between items-center shadow-sm">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-full bg-brand/10 text-brand flex items-center justify-center font-bold text-lg">
+        <i class="fa-solid fa-bolt"></i>
+      </div>
+      <div>
+        <h1 class="font-bold text-base leading-tight" id="headerTitle">लाइव फ़ीड</h1>
+        <p class="text-[11px] text-emerald-500 font-semibold flex items-center gap-1">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> DB & Storage एक्टिव
+        </p>
+      </div>
+    </div>
+    
+    <button id="themeToggleBtn" class="touch-bounce w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300">
+      <i class="fa-solid fa-moon dark:hidden"></i>
+      <i class="fa-solid fa-sun hidden dark:block text-amber-400"></i>
+    </button>
+  </header>
+
+  <!-- MAIN CONTAINERS -->
+  <main class="p-4 max-w-lg mx-auto w-full flex-1 overflow-y-auto space-y-4">
+    
+    <!-- VIEW 1: LIVE FEED -->
+    <section id="viewFeed" class="space-y-3">
+      <div class="relative">
+        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+        <input type="text" id="searchInput" placeholder="मैसेज या फोटो खोजें..." class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand shadow-sm">
+      </div>
+
+      <div id="messageContainer" class="space-y-3">
+        <div class="text-center py-8 text-gray-400 text-xs" id="loadingText">
+          <i class="fa-solid fa-circle-notch animate-spin text-lg mb-2"></i><br>
+          डेटा लोड हो रहा है...
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 2: USERS -->
+    <section id="viewUsers" class="hidden space-y-3">
+      <div class="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+        <h2 class="font-bold text-sm mb-1 text-brand"><i class="fa-solid fa-users mr-2"></i>ऑनलाइन यूज़र्स</h2>
+        <div id="usersList" class="space-y-2 mt-3"></div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: SETTINGS -->
+    <section id="viewSettings" class="hidden space-y-4">
+      <div class="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 space-y-3 shadow-sm">
+        <h2 class="font-bold text-sm text-brand"><i class="fa-solid fa-user-gear mr-2"></i>प्रोफ़ाइल सेटिंग्स</h2>
+        <div>
+          <label class="text-xs text-gray-400 font-medium block mb-1">आपका नाम</label>
+          <div class="flex gap-2">
+            <input type="text" id="usernameInput" class="flex-1 bg-gray-100 dark:bg-gray-700 border-0 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-brand">
+            <button id="saveNameBtn" class="touch-bounce bg-brand text-white text-xs px-4 rounded-xl font-bold">सेव करें</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- INPUT BAR WITH IMAGE UPLOAD PREVIEW -->
+  <div id="inputBar" class="fixed bottom-16 left-0 right-0 z-40 p-3 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border-t border-gray-200 dark:border-gray-700">
+    <div class="max-w-lg mx-auto space-y-2">
+      
+      <!-- IMAGE PREVIEW CONTAINER -->
+      <div id="imagePreviewContainer" class="hidden flex items-center justify-between bg-gray-100 dark:bg-gray-700 p-2 rounded-xl">
+        <div class="flex items-center gap-2 overflow-hidden">
+          <img id="imagePreview" src="" class="w-10 h-10 object-cover rounded-lg border border-brand">
+          <span class="text-xs text-gray-500 dark:text-gray-300 truncate" id="fileNameText">फोटो सिलेक्टेड</span>
+        </div>
+        <button id="removeImageBtn" class="text-red-400 hover:text-red-600 px-2 py-1"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- MAIN INPUT CONTROLS -->
+      <div class="flex gap-2 items-center">
+        <!-- Hidden File Input -->
+        <input type="file" id="imageInput" accept="image/*" class="hidden">
+        
+        <!-- Image Attach Button -->
+        <button id="attachImageBtn" class="touch-bounce w-11 h-11 rounded-2xl bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 flex items-center justify-center shrink-0 hover:bg-brand/10 hover:text-brand">
+          <i class="fa-solid fa-image text-lg"></i>
+        </button>
+
+        <input type="text" id="dataInput" placeholder="मैसेज या फोटो का विवरण..." class="flex-1 bg-gray-100 dark:bg-gray-700 border-0 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+        
+        <button id="sendBtn" class="touch-bounce bg-brand text-white px-5 h-11 rounded-2xl font-bold text-sm shadow-md shadow-brand/30 flex items-center justify-center shrink-0">
+          <i class="fa-solid fa-paper-plane" id="sendIcon"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAVIGATION BAR -->
+  <nav class="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-6 py-2">
+    <div class="max-w-lg mx-auto flex justify-around items-center">
+      <button id="navFeedBtn" class="touch-bounce flex flex-col items-center gap-1 text-brand font-bold">
+        <i class="fa-solid fa-comments text-lg"></i><span class="text-[10px]">फ़ीड</span>
+      </button>
+      <button id="navUsersBtn" class="touch-bounce flex flex-col items-center gap-1 text-gray-400">
+        <i class="fa-solid fa-users text-lg"></i><span class="text-[10px]">यूज़र्स</span>
+      </button>
+      <button id="navSettingsBtn" class="touch-bounce flex flex-col items-center gap-1 text-gray-400">
+        <i class="fa-solid fa-gear text-lg"></i><span class="text-[10px]">सेटिंग्स</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- FULLSCREEN IMAGE LIGHTBOX MODAL -->
+  <div id="imageModal" class="fixed inset-0 z-50 bg-black/90 hidden flex items-center justify-center p-4">
+    <button id="closeModalBtn" class="absolute top-4 right-4 text-white text-2xl p-2"><i class="fa-solid fa-xmark"></i></button>
+    <img id="fullModalImage" src="" class="max-w-full max-h-[85vh] rounded-2xl object-contain">
+  </div>
+
+  <!-- FIREBASE SDK ENGINE -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getDatabase, ref, push, onValue, remove, set, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+
+    // 1. Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyBGrYxoP47x1NsXp_JhfI1lBOwTn74FOjI",
+      authDomain: "user-to-user-eef99.firebaseapp.com",
+      databaseURL: "https://user-to-user-eef99-default-rtdb.firebaseio.com",
+      projectId: "user-to-user-eef99",
+      storageBucket: "user-to-user-eef99.firebasestorage.app",
+      messagingSenderId: "528112251108",
+      appId: "1:528112251108:android:d46564caea1000a92efcf1"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const storage = getStorage(app);
+
+    // 2. User State Identification
+    let currentUserId = localStorage.getItem('app_user_id') || ('user_' + Math.random().toString(36).substring(2, 9));
+    localStorage.setItem('app_user_id', currentUserId);
+
+    let currentUserName = localStorage.getItem('app_user_name') || ('यूज़र_' + currentUserId.substring(5, 9));
+    localStorage.setItem('app_user_name', currentUserName);
+
+    document.getElementById('usernameInput').value = currentUserName;
+    set(ref(db, 'users/' + currentUserId), { name: currentUserName, lastActive: serverTimestamp() });
+
+    // 3. UI Image Handling Logic
+    const attachImageBtn = document.getElementById('attachImageBtn');
+    const imageInput = document.getElementById('imageInput');
+    const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+    const imagePreview = document.getElementById('imagePreview');
+    const fileNameText = document.getElementById('fileNameText');
+    const removeImageBtn = document.getElementById('removeImageBtn');
+    let selectedFile = null;
+
+    attachImageBtn.addEventListener('click', () => imageInput.click());
+
+    imageInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        selectedFile = file;
+        fileNameText.innerText = file.name;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          imagePreview.src = event.target.result;
+          imagePreviewContainer.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    removeImageBtn.addEventListener('click', () => {
+      selectedFile = null;
+      imageInput.value = "";
+      imagePreviewContainer.classList.add('hidden');
+    });
+
+    // 4. Send Message & Upload Image to Firebase Storage
+    const sendBtn = document.getElementById('sendBtn');
+    const sendIcon = document.getElementById('sendIcon');
+    const dataInput = document.getElementById('dataInput');
+    const messagesRef = ref(db, 'user_messages');
+
+    async function handleSendMessage() {
+      const text = dataInput.value.trim();
+      if (!text && !selectedFile) return;
+
+      // UI Loading state
+      sendBtn.disabled = true;
+      sendIcon.className = "fa-solid fa-spinner animate-spin";
+
+      let imageUrl = "";
+
+      try {
+        // If image file is attached, upload to Firebase Storage
+        if (selectedFile) {
+          const fileRef = storageRef(storage, 'chat_images/' + Date.now() + '_' + selectedFile.name);
+          const uploadSnapshot = await uploadBytes(fileRef, selectedFile);
+          imageUrl = await getDownloadURL(uploadSnapshot.ref);
+        }
+
+        // Save entry in Realtime Database
+        await push(messagesRef, {
+          senderId: currentUserId,
+          senderName: currentUserName,
+          text: text,
+          imageUrl: imageUrl,
+          timestamp: Date.now()
+        });
+
+        // Reset Input Fields
+        dataInput.value = "";
+        selectedFile = null;
+        imageInput.value = "";
+        imagePreviewContainer.classList.add('hidden');
+
+      } catch (error) {
+        alert("अपलोड/सेव करने में एरर: " + error.message);
+      } finally {
+        sendBtn.disabled = false;
+        sendIcon.className = "fa-solid fa-paper-plane";
+      }
+    }
+
+    sendBtn.addEventListener('click', handleSendMessage);
+    dataInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSendMessage(); });
+
+    // 5. Render Realtime Data & Images
+    let allMessages = [];
+    const messageContainer = document.getElementById('messageContainer');
+
+    function renderMessages(items) {
+      messageContainer.innerHTML = "";
+      if (items.length === 0) {
+        messageContainer.innerHTML = `<div class="text-center py-8 text-gray-400 text-xs">कोई डेटा या फोटो नहीं मिली।</div>`;
+        return;
+      }
+
+      items.forEach((item) => {
+        const isMe = item.senderId === currentUserId;
+        const msgCard = document.createElement('div');
+        msgCard.className = `p-3 rounded-2xl border shadow-sm flex flex-col ${
+          isMe 
+            ? 'bg-brand/10 border-brand/30 dark:bg-brand/20 ml-6' 
+            : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700/60 mr-6'
+        }`;
+
+        const timeStr = item.timestamp ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
+        let imageHTML = item.imageUrl 
+          ? `<img src="${item.imageUrl}" class="mt-2 rounded-xl max-h-52 w-full object-cover cursor-pointer hover:opacity-90 transition open-img-modal" data-url="${item.imageUrl}">` 
+          : '';
+
+        msgCard.innerHTML = `
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-[11px] font-semibold text-gray-500 dark:text-gray-400">${isMe ? 'आप' : item.senderName}</span>
+            <div class="flex items-center gap-2">
+              <span class="text-[9px] text-gray-400">${timeStr}</span>
+              ${isMe ? `<button class="delete-btn text-xs text-red-400 hover:text-red-600" data-id="${item.id}"><i class="fa-solid fa-trash"></i></button>` : ''}
+            </div>
+          </div>
+          ${item.text ? `<p class="text-sm font-medium text-gray-800 dark:text-gray-100 break-words">${item.text}</p>` : ''}
+          ${imageHTML}
+        `;
+
+        messageContainer.appendChild(msgCard);
+      });
+
+      // Bind Image Modal Click Events
+      document.querySelectorAll('.open-img-modal').forEach(img => {
+        img.addEventListener('click', (e) => {
+          document.getElementById('fullModalImage').src = e.target.getAttribute('data-url');
+          document.getElementById('imageModal').classList.remove('hidden');
+        });
+      });
+
+      // Bind Delete Events
+      document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const msgId = e.currentTarget.getAttribute('data-id');
+          remove(ref(db, 'user_messages/' + msgId));
+        });
+      });
+    }
+
+    // Modal Close Action
+    document.getElementById('closeModalBtn').addEventListener('click', () => {
+      document.getElementById('imageModal').classList.add('hidden');
+    });
+
+    // Realtime DB Listener
+    onValue(messagesRef, (snapshot) => {
+      allMessages = [];
+      if (snapshot.exists()) {
+        snapshot.forEach((child) => {
+          allMessages.push({ id: child.key, ...child.val() });
+        });
+      }
+      renderMessages(allMessages);
+    });
+
+    // Live Search Filter
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase();
+      const filtered = allMessages.filter(m => (m.text && m.text.toLowerCase().includes(query)) || (m.senderName && m.senderName.toLowerCase().includes(query)));
+      renderMessages(filtered);
+    });
+
+    // Navigation Switcher & Theme Logic
+    const viewFeed = document.getElementById('viewFeed');
+    const viewUsers = document.getElementById('viewUsers');
+    const viewSettings = document.getElementById('viewSettings');
+    const inputBar = document.getElementById('inputBar');
+    const headerTitle = document.getElementById('headerTitle');
+
+    function switchTab(tab) {
+      viewFeed.classList.add('hidden'); viewUsers.classList.add('hidden'); viewSettings.classList.add('hidden'); inputBar.classList.add('hidden');
+      if (tab === 'feed') { viewFeed.classList.remove('hidden'); inputBar.classList.remove('hidden'); headerTitle.innerText = "लाइव फ़ीड"; }
+      else if (tab === 'users') { viewUsers.classList.remove('hidden'); headerTitle.innerText = "एक्टिव यूज़र्स"; }
+      else if (tab === 'settings') { viewSettings.classList.remove('hidden'); headerTitle.innerText = "सेटिंग्स"; }
+    }
+
+    document.getElementById('navFeedBtn').addEventListener('click', () => switchTab('feed'));
+    document.getElementById('navUsersBtn').addEventListener('click', () => switchTab('users'));
+    document.getElementById('navSettingsBtn').addEventListener('click', () => switchTab('settings'));
+
+    document.getElementById('themeToggleBtn').addEventListener('click', () => {
+      document.documentElement.classList.toggle('dark');
+    });
+  </script>
+</body>
+</html>
